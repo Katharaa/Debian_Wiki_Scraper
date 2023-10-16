@@ -220,7 +220,14 @@ class DebianWiki:
                             else:
                                 # Handle other cases if needed
                                 file.write(f"Unknown content: {subsection_content}\n\n")
-                
+                else:
+                    if isinstance(content, str):  # Check if it's a string
+                        content = re.sub(r'~~(.*?)~~', r'\1', content)
+                        file.write(f"{content}\n\n")
+                    else:
+                        # Handle other cases if needed
+                        file.write(f"Unknown content: {content}\n\n")
+
 
 # Define the filename for the markdown file
 markdown_filename = "debian_wiki_data.md"
