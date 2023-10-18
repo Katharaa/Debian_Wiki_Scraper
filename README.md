@@ -70,9 +70,6 @@ To run the script, follow these steps:
      
      
 # Project Milestone
-
-
-
 - [x] Create functions to extract news content from various sections on the Debian Wiki.
 
 - [x] Extract content from the general news section, latest news, Debian project news, and security announcements.
