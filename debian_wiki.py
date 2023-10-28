@@ -2,12 +2,26 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from markdownify import markdownify
+import json 
 import re
 import os
+import argparse
 
 
 SCRIPT_DIR = os.path.dirname(__file__)
 
+env = os.getenv('ENV') or "DEV"
+print("ENV Set to:", env)
+if env == "DEV":
+    print("Scraping the maximum number of links set to 10 and years to 2")
+elif env == "PROD":
+    print("Scraping at maximum depth")
+
+
+argParser = argparse.ArgumentParser()
+argParser.add_argument("-i", "--input-list", help="Relative location of the input file containing the list of URLs and relative path")
+
+args = argParser.parse_args()
 
 def fetch_all_urls(url):
     """Returns an array of URL strings
@@ -54,8 +68,10 @@ def get_urls_matching_pattern(url, pattern):
 
         # Filter the URLs that match the specified pattern
         matching_urls = [full_url for full_url in all_urls if re.search(pattern, full_url)]
-        return matching_urls[:2]
-        #return matching_urls
+        # During testing only get the latest 2 years
+        if (env == "DEV"):
+            return matching_urls[:2]
+        return matching_urls
     except requests.exceptions.RequestException as e:
         print("An error occurred:", e)
 
@@ -63,23 +79,23 @@ def get_urls_matching_pattern(url, pattern):
     return []
 
 
-def is_valid_date_url(url, base_url):
+def is_valid_news_url(url, base_url):
     # Construct the regex pattern with the base_url
-    pattern = re.escape(base_url) + r'(\d{4})/(\d{4})(\d{2})(\d{2})(\d+)?$'
+    pattern = re.escape(base_url)
+
+    if base_url == "https://www.debian.org/News/weekly/":
+        pattern += r'(\d{4}/\d{2}/|weekly/\d{4}/\d{2}/\d{2}/)'
+
+    elif base_url == "https://www.debian.org/News/":
+        pattern += r'(\d{4})/(\d{4})(\d{2})(\d{2})'
+
+    elif base_url == "https://www.debian.org/security/":
+        pattern += r'(\d{4}/[a-zA-Z0-9-]+)'
+
+    pattern += r'$'
 
     # Use the constructed pattern to match the URL
-    match = re.match(pattern, url)
-
-    if match:
-        year, full_year, month, day, extra_info = match.groups()
-        if (
-            year == full_year
-            and re.match(r'^(0[1-9]|1[0-2])$', month)
-            and re.match(r'^(0[1-9]|[12][0-9]|3[01])$', day)
-        ):
-            return True
-    return False
-
+    return bool(re.match(pattern, url))
 
 
 def get_all_news_links_from_endpoints(news_endpoints, base_url):
@@ -87,9 +103,13 @@ def get_all_news_links_from_endpoints(news_endpoints, base_url):
     for endpoint in news_endpoints:
         all_links = fetch_all_urls(endpoint)
         for link in all_links:
-            if is_valid_date_url(link, base_url):
+            if (env == "DEV" and len(valid_news_url) > 10):
+                return valid_news_url
+            if is_valid_news_url(link, base_url):
                 print("Got valid news URL:", link)
                 valid_news_url.append(link)
+            # else:
+            #     print("Invalid URL:", link)
     return valid_news_url
 
 
@@ -147,7 +167,6 @@ def extract_content_and_convert_to_markdown(url):
 
     return None
 
-
 def write_markdown_to_file(markdown_content, file_path):
     try:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -157,36 +176,63 @@ def write_markdown_to_file(markdown_content, file_path):
     except Exception as e:
         print(f"Failed to save markdown content to {file_path}. Error: {str(e)}")
 
+
 def create_file_name(url, base_url):
-    pattern = re.escape(base_url) + r'(\d{4})/(\d{4})(\d{2})(\d{2})(\d+)?$'
-    match = re.search(pattern, url)
-    if match:
-        year, full_year, month, day, extra_info = match.groups()
-        formatted_date = f"{year}/{day}-{month}"
-        if extra_info:
-            formatted_date += f"-{extra_info}"
-        return f"{formatted_date}.md"
+    # Check if the URL starts with the specified base_url
+    if url.startswith(base_url):
+        # Extract the content after the base_url
+        last_part = url[len(base_url):]
+        # Handle edge case for debian project news URLs
+        if last_part[-1] == "/":
+            last_part = last_part[:-1]
+
+        return last_part + ".md"
+
     return None
 
-url = "https://www.debian.org/News/"
-pattern = r'https://www.debian.org/News/\d{4}/$'
-base_url = "https://www.debian.org/News/"
-OUTPUT_DIR = "news" 
 
-year_news_endpoints = get_urls_matching_pattern(url, pattern)
-all_news_links = get_all_news_links_from_endpoints(year_news_endpoints, url)
+URLs = {}
+filename = "urls.json"
+print("args", args.input_list)
+if args.input_list == None:
+    print("No input-list passed. Looking for default list urls.json...")
+elif args.input_list and args.input_list.endswith(".json"):
+    print("Using", args.input_list, "as input-list")
+    filename = args.input_list
+else:
+    print("Passed in input-list is not a json file. Exiting...")
+    exit()
 
-for link in all_news_links:
-    md = extract_content_and_convert_to_markdown(link)
-    formatted_date = create_file_name(link, base_url)
-    if formatted_date:
-        folder_path = os.path.join(SCRIPT_DIR, OUTPUT_DIR, formatted_date.split("/")[0])
-        os.makedirs(folder_path, exist_ok=True)
-        file_path = os.path.join(folder_path, formatted_date.split("/")[1])
-        write_markdown_to_file(md, file_path)
-        
-        
-        
-        
-        
 
+try:
+    # Try to open the file for reading
+    with open(filename) as f:
+        data = f.read()
+
+    try:
+        # Try to parse the JSON data
+        URLs = json.loads(data)
+        print(URLs)
+
+    except json.JSONDecodeError as e:
+        print("Error decoding JSON data:", e)
+
+except FileNotFoundError:
+    print(f"File '{filename}' not found.")
+
+except IOError as e:
+    print(f"An error occurred while reading the file: {e}")
+
+
+for url in URLs:
+    pattern = re.escape(url)
+    pattern += r'\d{4}/$'
+    prefix = url + "2023/"
+    REL_PATH = URLs[url]
+    print ("Processing URL:", url, "to", REL_PATH)
+    year_news_endpoints = get_urls_matching_pattern(url, pattern)
+    all_news_links = get_all_news_links_from_endpoints(year_news_endpoints, url)
+
+    for link in all_news_links:
+        md = extract_content_and_convert_to_markdown(link)
+        write_markdown_to_file(md, os.path.join(SCRIPT_DIR, REL_PATH, create_file_name(link, url)))
