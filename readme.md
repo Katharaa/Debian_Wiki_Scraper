@@ -1,19 +1,19 @@
-
 Debian Wiki Scraper (Task for outreachy)
-====================================
+========================================
 
 Table of Contents
 -----------------
 
 *   [System Requirements](#system-requirements)
-*   [Installation](#installation)
+*   [Method 1: ](#method-1-normal-installation)
     *   [Python Installation](#python-installation)
     *   [Creating a Virtual Environment](#creating-a-virtual-environment)
     *   [Library Dependencies](#library-dependencies)
-    *   [Testing](#testing)
-*   [How to Run the Script](#how-to-run-the-script)
-*   [Comment Options](#comment-options)
-*   [Simplify Dependency Management with Docker](#simplify)
+    *   [How to Run the Script](#how-to-run-the-script)
+*   [Method 2: Simplify Dependency Management with Docker](#method-2-simplify-dependency-management-with-docker)
+    *   [Running the Docker Container](#running-the-docker-container)
+*   [Testing](#testing)
+*   [Command Line Options](#command-line-options)
 *   [Project Milestone](#project-milestone)
 *   [Conclusion](#conclusion)
 
@@ -22,28 +22,25 @@ System Requirements
 
 Before proceeding, ensure your system meets the following prerequisites:
 
-*   Python (Recommended [Python 3.11.6](https://www.python.org/downloads/))
+*   Python (Recommended [Python 3.11.6](https://www.python.org/downloads))
 *   An internet connection for downloading dependencies :)
 *   I'm using Debian Unstable Version
 
-Installation
-------------
+Method 1:
+-----------------------------
 
 ### Python Installation
 
-If Python is not already installed on your system, you can download it from the [official Python website](https://www.python.org/downloads/).
+If Python is not already installed on your system, you can download it from the [official Python website](https://www.python.org/downloads).
 
 ### Creating a Virtual Environment
 
 We recommend working within a virtual environment to manage project dependencies. You can create a virtual environment using the following command:
 
-    
     python -m venv myenv
-    
 
 Activate the virtual environment:
 
-    
     source myenv/bin/activate
     
 Installing pip: 
@@ -58,23 +55,11 @@ You can manage the required Python libraries using a `requirements.txt` file for
 
 I have attached the `requirements.txt` file, and you can install the libraries by running the following command:
 
-    
     pip install -r requirements.txt
-    
 
 This will install the specified libraries and their required versions, making it easier to manage and share dependencies for your project.
 
-### Testing
-Before running the tests, ensure you have already installed pytest in your project's virtual environment.
-
-    pip install pytest
-    
-Open your command-line interface and navigate to the root directory of your project where the "tests" directory is located. 
-
-    pytest
-
-How to Run the Script
----------------------
+### How to Run the Script
 
 To run the script, follow these steps:
 
@@ -82,14 +67,43 @@ To run the script, follow these steps:
 2.  Navigate to the directory containing the script.
 3.  Run the script with the following command, where `app.py` contains your python script:
 
-    
-    python app.py -i urls.json
-    
+         python app.py -i urls.json
 
-Comment Options
----------------
+Method 2: Simplify Dependency Management with Docker
+----------------------------------------------------
 
-You can use the script with the following comment options:
+### Running the Docker Container
+
+If you want to avoid dealing with potential dependency issues and ensure consistency in your project, using Docker can be a great solution. Docker allows you to package your project along with all its dependencies into a portable container. This container can be run consistently across different environments.
+
+To run your project using Docker, follow these simple steps:
+
+1.  Make the Script Executable: Start by navigating to the directory where your Docker script is located. You may need to make the script executable using the following command:
+
+        chmod +x docker-run.sh
+
+2.  Run the Docker Container: Once the script is made executable, run the Docker container by executing the script:
+
+        ./docker-run.sh
+    
+The provided docker-run.sh script likely contains all the necessary Docker commands and configurations to set up and run your project inside a container.
+Note: It is recommended to use Python 3.11 or higher versions for an optimal experience.
+
+Testing
+-------
+
+Before running the tests, ensure you have already installed pytest in your project's virtual environment:
+
+    pip install pytest
+
+Open your command-line interface and navigate to the root directory of your project where the "tests" directory is located:
+
+    pytest
+
+Command Line Options
+--------------------
+
+You can use the script with the following command line options:
 
 *   `python app.py -h`: Display the help message and available options.
 *   `python app.py -i <input_file>`: Execute the script with an input file containing a list of URLs and relative paths for saving Markdown files. If no input file is provided, the script will look for a default input file named `urls.json` in the project directory. You can customize the input data with this option.
@@ -108,27 +122,6 @@ ENV=DEV python app.py -i urls.json
 ENV=PROD python app.py -i urls.json
 
 The choice of environment affects the behavior of the script, particularly the number of years for scraping and the number of matched URLs. You can select the appropriate environment based on your specific use case.
-
-Simplify Dependency Management with Docker
------------------
-If you want to avoid dealing with potential dependency issues and ensure consistency in your project, using Docker can be a great solution. Docker allows you to package your project along with all its dependencies into a portable container. This container can be run consistently across different environments.
-
-To run your project using Docker, follow these simple steps:
-1. Make the Script Executable: Start by navigating to the directory where your Docker script is located. You may need to make the script executable using the following command:
-    
-
-      chmod +x docker-run.sh
-      
-2. Run the Docker Container: Once the script is made executable, run the Docker container by executing the script:
-
-
-      ./docker-run.sh
-
-The provided docker-run.sh script likely contains all the necessary Docker commands and configurations to set up and run your project inside a container.
-
- Note: It is recommended to use Python 3.11 or newer versions for an optimal experience.
-
-
 
 Project Milestone
 -----------------
