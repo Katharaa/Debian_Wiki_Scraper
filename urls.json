@@ -1,0 +1,5 @@
+{
+    "https://www.debian.org/News/": "latest_news",
+    "https://www.debian.org/News/weekly/": "debian_project_news",
+    "https://www.debian.org/security/": "debian_security_announce"
+}
