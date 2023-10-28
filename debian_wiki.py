@@ -6,9 +6,15 @@ import re
 import os
 
 
-script_dir = os.path.dirname(__file__)
+SCRIPT_DIR = os.path.dirname(__file__)
+
 
 def fetch_all_urls(url):
+    """Returns an array of URL strings
+
+    Goes through the passed-in URL and finds all links from it.
+    """
+
     try:
         # Send an HTTP GET request to the URL
         response = requests.get(url)
@@ -38,6 +44,10 @@ def fetch_all_urls(url):
     return []
 
 def get_urls_matching_pattern(url, pattern):
+    """Returns an array of URL strings
+
+    Fetches all URLs from a webpage and returns an array of URLs which matches the pattern
+    """
     try:
         # Fetch all URLs from the given URL
         all_urls = fetch_all_urls(url)
@@ -53,30 +63,43 @@ def get_urls_matching_pattern(url, pattern):
     return []
 
 
-def is_valid_date_url(url):
-    # Use regular expression to match the pattern
-    match = re.match(r'https://www.debian.org/News/(\d{4})/(\d{4})(\d{2})(\d{2})$', url)
+def is_valid_date_url(url, base_url):
+    # Construct the regex pattern with the base_url
+    pattern = re.escape(base_url) + r'(\d{4})/(\d{4})(\d{2})(\d{2})(\d+)?$'
+
+    # Use the constructed pattern to match the URL
+    match = re.match(pattern, url)
+
     if match:
-        year, full_year, month, day = match.groups()
-        if year == full_year and re.match(r'^(0[1-9]|1[0-2])$', month) and re.match(r'^(0[1-9]|[12][0-9]|3[01])$', day):
+        year, full_year, month, day, extra_info = match.groups()
+        if (
+            year == full_year
+            and re.match(r'^(0[1-9]|1[0-2])$', month)
+            and re.match(r'^(0[1-9]|[12][0-9]|3[01])$', day)
+        ):
             return True
     return False
 
 
-def get_all_news_links_from_endpoints(news_endpoints):
+
+def get_all_news_links_from_endpoints(news_endpoints, base_url):
     valid_news_url = []
     for endpoint in news_endpoints:
         all_links = fetch_all_urls(endpoint)
         for link in all_links:
-            if is_valid_date_url(link):
+            if is_valid_date_url(link, base_url):
                 print("Got valid news URL:", link)
                 valid_news_url.append(link)
     return valid_news_url
 
 
-
-
 def convert_relative_links_to_absolute(soup, base_url):
+    """
+    Returns an absolute link in string form
+
+    Take input of a soup object and a base_url and returns all links in a webpage
+    as abosulute links
+    """
     # Find all anchor (a) tags in the HTML
     links = soup.find_all('a')
 
@@ -88,6 +111,13 @@ def convert_relative_links_to_absolute(soup, base_url):
             link['href'] = full_url
 
 def extract_content_and_convert_to_markdown(url):
+    """
+    Returns a markdown string
+
+    Accepts a URL, which has to be converted to markdown.
+    By default, all the interested content lies inside a HTML div with the id 
+    "content"
+    """
     try:
         # Send an HTTP GET request to the URL
         response = requests.get(url)
@@ -100,7 +130,7 @@ def extract_content_and_convert_to_markdown(url):
             # Convert relative links to absolute links using the base URL
             convert_relative_links_to_absolute(soup, url)
 
-            # Find the element with id="content"
+            # Find the element with id="content" as it contains the interested content
             content_element = soup.find(id="content")
 
             # Check if the content_element is not None
@@ -117,6 +147,7 @@ def extract_content_and_convert_to_markdown(url):
 
     return None
 
+
 def write_markdown_to_file(markdown_content, file_path):
     try:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -126,30 +157,36 @@ def write_markdown_to_file(markdown_content, file_path):
     except Exception as e:
         print(f"Failed to save markdown content to {file_path}. Error: {str(e)}")
 
-def create_file_name(url, output_dir):
-    if url.startswith("https://www.debian.org/News/"):
-        last_part = url[len("https://www.debian.org/News/"):]
-
-        # Reformat the date part to "DD-MM"
-        parts = last_part.split("/")
-        if len(parts) >= 2 and all(part.isdigit() for part in parts[:2]):
-            year = parts[0]
-            date = parts[1][:8]  
-            formatted_date = f"{date[6:8]}-{date[4:6]}"  
-            
-            year_dir = os.path.join(output_dir, year)
-            os.makedirs(year_dir, exist_ok=True)
-            file_path = os.path.join(year_dir, formatted_date + ".md")
-            return file_path
+def create_file_name(url, base_url):
+    pattern = re.escape(base_url) + r'(\d{4})/(\d{4})(\d{2})(\d{2})(\d+)?$'
+    match = re.search(pattern, url)
+    if match:
+        year, full_year, month, day, extra_info = match.groups()
+        formatted_date = f"{year}/{day}-{month}"
+        if extra_info:
+            formatted_date += f"-{extra_info}"
+        return f"{formatted_date}.md"
+    return None
 
 url = "https://www.debian.org/News/"
 pattern = r'https://www.debian.org/News/\d{4}/$'
+base_url = "https://www.debian.org/News/"
+OUTPUT_DIR = "news" 
+
 year_news_endpoints = get_urls_matching_pattern(url, pattern)
-all_news_links = get_all_news_links_from_endpoints(year_news_endpoints)
-output_dir = os.path.join(script_dir, "news")
+all_news_links = get_all_news_links_from_endpoints(year_news_endpoints, url)
 
 for link in all_news_links:
     md = extract_content_and_convert_to_markdown(link)
-    file_path = create_file_name(link, output_dir)
-    if file_path:
+    formatted_date = create_file_name(link, base_url)
+    if formatted_date:
+        folder_path = os.path.join(SCRIPT_DIR, OUTPUT_DIR, formatted_date.split("/")[0])
+        os.makedirs(folder_path, exist_ok=True)
+        file_path = os.path.join(folder_path, formatted_date.split("/")[1])
         write_markdown_to_file(md, file_path)
+        
+        
+        
+        
+        
+
