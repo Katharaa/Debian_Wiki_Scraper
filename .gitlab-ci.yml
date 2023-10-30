@@ -1,0 +1,23 @@
+image: python:3.11
+
+stages:
+  - run
+  - push_output
+
+run:
+  stage: run
+  script:
+    - python app.py  
+  only:
+    - branches  
+
+push_output:
+  stage: push_output
+  script:
+    - git checkout -b output  # Create the 'output' branch
+    - git add .  # Add all changes (output from the script)
+    - git commit -m "Update output"  # Commit the changes
+    - git push origin output  # Push changes to the 'output' branch
+  only:
+    - branches 
+
