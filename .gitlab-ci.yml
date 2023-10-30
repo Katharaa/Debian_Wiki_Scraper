@@ -1,23 +1,35 @@
 image: python:3.11
 
 stages:
-  - run
+  - setup
+  - run_app
   - push_output
 
-run:
-  stage: run
+setup:
+  stage: setup
   script:
-    - python app.py  
+    - python -m venv myenv
+    - source myenv/bin/activate
+    - python -m ensurepip --default-pip
+    - pip install -r requirements.txt
   only:
-    - branches  
+    - main
+
+run_app:
+  stage: run_app
+  script:
+    - source myenv/bin/activate  # Activate the virtual environment
+    - python app.py -i urls.json
+  only:
+    - main
 
 push_output:
   stage: push_output
   script:
-    - git checkout -b output  # Create the 'output' branch
-    - git add .  # Add all changes (output from the script)
+    - git checkout -b output  # Create or switch to the 'output' branch
+    - git add .  # Add all changes (output files)
     - git commit -m "Update output"  # Commit the changes
     - git push origin output  # Push changes to the 'output' branch
   only:
-    - branches 
+    - main
 
